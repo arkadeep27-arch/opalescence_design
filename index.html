@@ -316,6 +316,14 @@
     color:var(--paper); letter-spacing:0.04em;
   }
   .reader-counter b{ color:var(--yellow); }
+  .reader-swipe-hint{
+    display:none; text-align:center; margin-top:8px; font-family:var(--display2);
+    font-size:0.62rem; letter-spacing:0.05em; text-transform:uppercase; color:var(--text-dim, var(--paper)); opacity:0.55;
+  }
+  @media (hover:none) and (pointer:coarse){
+    .reader-swipe-hint{ display:block; }
+    .reader-nav{ opacity:0.55; }
+  }
 
   /* ---------- BIO ---------- */
   #bio{ background:var(--violet); color:var(--paper); border-bottom:4px solid var(--ink); }
@@ -500,6 +508,7 @@
       <p class="reader-desc" id="reader-desc"></p>
     </div>
     <div class="reader-counter">POSTER <b id="reader-current">01</b> / <span id="reader-total">12</span></div>
+    <div class="reader-swipe-hint">⟷ swipe to browse</div>
   </div>
 </div>
 
@@ -776,6 +785,38 @@ document.addEventListener('keydown', (e) => {
   if(e.key==='ArrowRight') nextFrame();
   if(e.key==='ArrowLeft') prevFrame();
 });
+
+// ============ SWIPE / DRAG TO FLIP (works for touch, mouse, trackpad) ============
+// Applies to the reader modal — since every section (Recent Work, INQUICON,
+// Music Club, IICM Design, Digi Art) opens its pieces through this same
+// reader, swiping here works everywhere photos are shown full-screen.
+const readerStage = document.querySelector('.reader-stage');
+const SWIPE_THRESHOLD = 40;
+let swipeStartX = 0, swipeStartY = 0, swiping = false;
+
+function swipeStart(x, y){ swiping = true; swipeStartX = x; swipeStartY = y; }
+function swipeEnd(x, y){
+  if(!swiping) return;
+  swiping = false;
+  const dx = x - swipeStartX;
+  const dy = y - swipeStartY;
+  if(Math.abs(dx) > SWIPE_THRESHOLD && Math.abs(dx) > Math.abs(dy)){
+    if(dx < 0) nextFrame(); else prevFrame();
+  }
+}
+
+readerStage.addEventListener('touchstart', (e) => {
+  const t = e.changedTouches[0];
+  swipeStart(t.screenX, t.screenY);
+}, { passive:true });
+readerStage.addEventListener('touchend', (e) => {
+  const t = e.changedTouches[0];
+  swipeEnd(t.screenX, t.screenY);
+}, { passive:true });
+
+// Mouse/trackpad drag support (desktop)
+readerStage.addEventListener('mousedown', (e) => { swipeStart(e.clientX, e.clientY); });
+window.addEventListener('mouseup', (e) => { if(swiping) swipeEnd(e.clientX, e.clientY); });
 
 // ============ TICKETS ============
 const tickets = document.getElementById('tickets');
