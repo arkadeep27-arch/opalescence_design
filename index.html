@@ -220,6 +220,57 @@
   #work{ background:linear-gradient(180deg, var(--paper), #fff); border-top:4px solid var(--ink); border-bottom:4px solid var(--ink); }
 
   .rack-wrap{ position:relative; }
+
+  /* ---------- COVERFLOW (center-focused browsing carousel) ---------- */
+  .coverflow-wrap{ position:relative; margin-bottom:12px; }
+  .coverflow{
+    display:flex; align-items:center; gap:36px; overflow-x:auto;
+    scroll-snap-type:x mandatory; padding:30px 42vw 40px; -webkit-overflow-scrolling:touch;
+  }
+  .coverflow::-webkit-scrollbar{ height:8px; }
+  .coverflow::-webkit-scrollbar-thumb{ background:var(--ink); }
+  .coverflow::-webkit-scrollbar-track{ background:var(--paper); border:1px solid var(--ink); }
+
+  .cover-card{
+    flex:0 0 300px; aspect-ratio:3/4; scroll-snap-align:center; cursor:pointer;
+    border:4px solid var(--ink); box-shadow:7px 7px 0 var(--ink);
+    display:flex; flex-direction:column; overflow:hidden;
+    transform:scale(0.7); opacity:0.55;
+    transition:transform 0.15s ease-out, opacity 0.15s ease-out, box-shadow 0.15s ease-out;
+    will-change:transform, opacity;
+  }
+  .cover-card.is-active{ box-shadow:10px 10px 0 var(--ink); }
+  .cover-face{ flex:1; position:relative; }
+  .cover-badge{
+    position:absolute; top:10px; left:10px; font-family:var(--display2); font-size:0.65rem;
+    background:var(--paper); border:2px solid var(--ink); padding:3px 8px; letter-spacing:0.03em;
+  }
+  .cover-count{
+    position:absolute; top:10px; right:10px; font-family:var(--display2); font-size:0.62rem;
+    background:var(--ink); color:var(--paper); border:2px solid var(--ink); padding:3px 8px; letter-spacing:0.02em;
+  }
+  .cover-sub{
+    position:absolute; left:12px; right:12px; bottom:10px;
+    font-family:var(--hand); font-size:0.72rem; color:var(--ink);
+    background:linear-gradient(100deg, rgba(254,246,228,0.95), rgba(254,246,228,0.72));
+    padding:5px 14px; display:inline-block; width:fit-content;
+    clip-path:polygon(
+      5% 0%, 0% 12%, 6% 24%, 0% 36%, 6% 48%, 0% 60%, 6% 72%, 0% 84%, 5% 100%,
+      95% 100%, 100% 84%, 94% 72%, 100% 60%, 94% 48%, 100% 36%, 94% 24%, 100% 12%, 95% 0%
+    );
+    filter:drop-shadow(2px 2px 0 rgba(20,18,26,0.35));
+  }
+  .cover-band{ background:var(--ink); color:var(--paper); padding:10px 12px; }
+  .cover-title{ font-family:var(--display); font-size:1.3rem; letter-spacing:0.02em; line-height:1; }
+  .cover-meta{ font-family:var(--body); font-size:0.66rem; color:var(--yellow); margin-top:4px; text-transform:uppercase; letter-spacing:0.04em; }
+  .coverflow-hint{
+    display:flex; justify-content:space-between; font-family:var(--display2); font-size:0.7rem;
+    text-transform:uppercase; letter-spacing:0.03em; padding:0 4px;
+  }
+  @media (max-width:860px){
+    .coverflow{ padding:24px 26vw 34px; gap:24px; }
+    .cover-card{ flex:0 0 230px; }
+  }
   .rack{
     display:flex; gap:26px; overflow-x:auto; padding:20px 6px 30px;
     scroll-snap-type:x proximity;
@@ -488,9 +539,10 @@
     <span class="tab">Issue Rack</span>
     <h2 class="section-title">Flip through the <span class="pop">work</span></h2>
   </div>
-  <div class="rack-wrap reveal-up">
-    <div class="rack" id="rack"></div>
-    <div class="rack-hint"><span>← drag / scroll →</span><span id="rack-count"></span></div>
+
+  <div class="coverflow-wrap reveal-up">
+    <div class="coverflow" id="coverflow"></div>
+    <div class="coverflow-hint"><span>← swipe / scroll →</span><span id="coverflow-count"></span></div>
   </div>
 </section>
 
@@ -686,31 +738,83 @@ const achievements = [
   { star:"VI", title:"Comics Featured in Insight", org:"IISERK Sci Mag", desc:"Made a comic for IISERK's science magazine about the great Indian mathematician, Harish Chandra.", url:"https://scicomm.iiserkol.ac.in/issue9/comic-Arkadeep-Bandyopadhyay/" }
 ];
 
-// ============ RENDER RACK (one card per category) ============
-const rack = document.getElementById('rack');
+
+
+// ============ COVERFLOW (center-focused browsing carousel) ============
+const coverflow = document.getElementById('coverflow');
+
 categories.forEach((cat, i) => {
   const color = cat.color || palette[i % palette.length];
+  const tiltPattern = [-4, 3, -2.5];
+  const tilt = tiltPattern[i % tiltPattern.length];
   const el = document.createElement('div');
-  el.className = 'issue';
+  el.className = 'cover-card';
+  el.dataset.index = i;
+  el.dataset.tilt = tilt;
   el.tabIndex = 0;
-  el.setAttribute('role','button');
+  el.setAttribute('role', 'button');
   el.setAttribute('aria-label', `Open ${cat.label} gallery`);
   el.innerHTML = `
-    <div class="issue-art halftone" style="background-color:${color}; background-blend-mode:multiply; background-size:11px 11px, cover; opacity:0.92;">
-      <span class="issue-tag">#${String(i+1).padStart(2,'0')}</span>
-      <span class="issue-count">${cat.items.length} pieces</span>
-      <span class="issue-sub">${cat.subtitle}</span>
+    <div class="cover-face halftone" style="background-color:${color}; background-blend-mode:multiply; background-size:11px 11px, cover;">
+      <span class="cover-badge">#${String(i+1).padStart(2,'0')}</span>
+      <span class="cover-count">${cat.items.length} pieces</span>
+      <span class="cover-sub">${cat.subtitle}</span>
     </div>
-    <div class="issue-band">
-      <div class="issue-title">${cat.label}</div>
-      <div class="issue-meta">Tap to flip through</div>
+    <div class="cover-band">
+      <div class="cover-title">${cat.label}</div>
+      <div class="cover-meta">Tap to flip through</div>
     </div>`;
-  el.addEventListener('click', () => openReader(i, 0));
-  el.addEventListener('keydown', (e) => { if(e.key==='Enter'||e.key===' '){ e.preventDefault(); openReader(i, 0);} });
-  rack.appendChild(el);
+  coverflow.appendChild(el);
 });
-const totalPieces = categories.reduce((sum, c) => sum + c.items.length, 0);
-document.getElementById('rack-count').textContent = `${categories.length} sections · ${totalPieces} pieces`;
+document.getElementById('coverflow-count').textContent = `${categories.length} sections`;
+
+const coverCards = coverflow.querySelectorAll('.cover-card');
+let coverflowTicking = false;
+
+function updateCoverflowScale(){
+  const wrapRect = coverflow.getBoundingClientRect();
+  const centerX = wrapRect.left + wrapRect.width / 2;
+  coverCards.forEach((card) => {
+    const rect = card.getBoundingClientRect();
+    const cardCenter = rect.left + rect.width / 2;
+    const dist = Math.abs(cardCenter - centerX);
+    const maxDist = wrapRect.width / 2 + rect.width / 2;
+    const t = Math.min(dist / maxDist, 1);
+    const scale = 1 - t * 0.32;
+    const opacity = 1 - t * 0.5;
+    const isActive = dist < rect.width * 0.35;
+    const tilt = parseFloat(card.dataset.tilt) * t; // straightens out as it nears center
+    card.style.transform = `rotate(${tilt}deg) scale(${scale})`;
+    card.style.opacity = opacity;
+    card.classList.toggle('is-active', isActive);
+  });
+  coverflowTicking = false;
+}
+function requestCoverflowUpdate(){
+  if(!coverflowTicking){
+    coverflowTicking = true;
+    requestAnimationFrame(updateCoverflowScale);
+  }
+}
+
+coverflow.addEventListener('scroll', requestCoverflowUpdate, { passive:true });
+window.addEventListener('resize', requestCoverflowUpdate);
+
+coverCards.forEach((card) => {
+  const i = +card.dataset.index;
+  const handleActivate = () => {
+    if(card.classList.contains('is-active')){
+      openReader(i, 0);
+    } else {
+      card.scrollIntoView({ behavior:'smooth', inline:'center', block:'nearest' });
+    }
+  };
+  card.addEventListener('click', handleActivate);
+  card.addEventListener('keydown', (e) => { if(e.key==='Enter'||e.key===' '){ e.preventDefault(); handleActivate(); } });
+});
+
+// Initial scale pass once layout has settled
+requestAnimationFrame(() => requestAnimationFrame(updateCoverflowScale));
 
 // ============ RECENT WORK (hero preview strip) ============
 const recentScroll = document.getElementById('recent-scroll');
